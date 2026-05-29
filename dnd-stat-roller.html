@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ability Score Forge</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=EB+Garamond:ital@0;1&display=swap');
+
+  :root{
+    --parchment:#e8dcc0;
+    --parchment-dark:#d4c29a;
+    --ink:#2a1d0f;
+    --ember:#a8331f;
+    --ember-glow:#d4552e;
+    --gold:#b8893a;
+    --shadow:rgba(40,25,10,.35);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    min-height:100vh;
+    font-family:'EB Garamond',serif;
+    color:var(--ink);
+    background:
+      radial-gradient(circle at 20% 10%, rgba(184,137,58,.18), transparent 40%),
+      radial-gradient(circle at 80% 90%, rgba(168,51,31,.15), transparent 45%),
+      #1a120a;
+    display:flex;flex-direction:column;align-items:center;
+    padding:2.5rem 1rem 4rem;
+  }
+  .board{
+    width:100%;max-width:760px;
+    background:
+      repeating-linear-gradient(0deg, transparent, transparent 28px, rgba(120,90,40,.04) 29px),
+      linear-gradient(160deg,var(--parchment),var(--parchment-dark));
+    border:1px solid #8a6d3a;
+    border-radius:6px;
+    box-shadow:0 18px 50px rgba(0,0,0,.55), inset 0 0 60px rgba(120,80,30,.25);
+    padding:2.5rem 2rem 3rem;
+    position:relative;
+  }
+  .board::before,.board::after{
+    content:"❖";position:absolute;color:var(--gold);font-size:1.2rem;opacity:.6;
+  }
+  .board::before{top:.6rem;left:.8rem}
+  .board::after{bottom:.6rem;right:.8rem}
+
+  h1{
+    font-family:'Cinzel Decorative',serif;font-weight:900;
+    font-size:clamp(1.8rem,5vw,2.8rem);text-align:center;
+    color:var(--ember);letter-spacing:1px;
+    text-shadow:1px 1px 0 rgba(255,240,210,.4);
+  }
+  .sub{text-align:center;font-style:italic;color:#5c4528;margin:.4rem 0 1.8rem;font-size:1.05rem}
+
+  .controls{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-bottom:2rem}
+  button{
+    font-family:'Cinzel Decorative',serif;font-weight:700;
+    cursor:pointer;border:none;border-radius:4px;
+    padding:.85rem 1.6rem;font-size:.95rem;letter-spacing:.5px;
+    transition:transform .12s, box-shadow .12s, filter .12s;
+  }
+  .roll-btn{
+    background:linear-gradient(180deg,var(--ember-glow),var(--ember));
+    color:#fff6e8;box-shadow:0 4px 0 #7c2415, 0 8px 14px var(--shadow);
+  }
+  .roll-btn:hover{filter:brightness(1.08)}
+  .roll-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #7c2415}
+  .clear-btn{
+    background:linear-gradient(180deg,#c9b27e,var(--parchment-dark));
+    color:var(--ink);box-shadow:0 4px 0 #8a6d3a, 0 8px 14px var(--shadow);
+  }
+  .clear-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #8a6d3a}
+
+  .scores{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1rem}
+  .score-card{
+    background:linear-gradient(165deg,#f3ead2,#dcc99c);
+    border:1px solid #9b7c44;border-radius:6px;
+    padding:1.1rem .8rem;text-align:center;
+    box-shadow:inset 0 1px 3px rgba(255,255,255,.5), 0 4px 10px var(--shadow);
+    opacity:0;transform:translateY(12px);
+  }
+  .score-card.show{animation:rise .5s forwards}
+  @keyframes rise{to{opacity:1;transform:translateY(0)}}
+  .total{
+    font-family:'Cinzel Decorative',serif;font-weight:900;
+    font-size:2.6rem;line-height:1;color:var(--ember);
+    text-shadow:1px 1px 0 rgba(255,245,220,.5);
+  }
+  .rolls{font-size:.9rem;color:#6b5230;margin-top:.5rem;font-style:italic}
+  .rolls .drop{text-decoration:line-through;opacity:.5}
+  .rolls .one{color:var(--ember);font-weight:bold}
+  .modifier{margin-top:.4rem;font-size:.95rem;color:#4a3a20}
+  .modifier b{color:var(--gold)}
+
+  .summary{
+    text-align:center;margin-top:1.8rem;font-size:1.1rem;
+    color:#5c4528;min-height:1.5rem;
+  }
+  .summary b{color:var(--ember);font-family:'Cinzel Decorative',serif}
+  .note{text-align:center;font-size:.82rem;color:#7a6038;margin-top:2rem;font-style:italic}
+</style>
+</head>
+<body>
+  <div class="board">
+    <h1>Ability Score Forge</h1>
+    <p class="sub">4d6 · reroll 1s · drop the lowest</p>
+
+    <div class="controls">
+      <button class="roll-btn" onclick="rollAll()">⚔ Roll Scores</button>
+      <button class="clear-btn" onclick="clearScores()">Clear</button>
+    </div>
+
+    <div class="scores" id="scores"></div>
+    <div class="summary" id="summary"></div>
+
+    <p class="note">Each die showing a 1 is rerolled once (a fresh d6, even if it lands on 1 again).</p>
+  </div>
+
+<script>
+  function d6(){ return Math.floor(Math.random()*6)+1; }
+
+  // Roll 4d6, reroll any 1 (single reroll), drop lowest.
+  function rollScore(){
+    const dice = [];
+    for(let i=0;i<4;i++){
+      let v = d6();
+      let rerolled = false;
+      if(v === 1){ v = d6(); rerolled = true; }
+      dice.push({value:v, rerolled});
+    }
+    const minIdx = dice.reduce((m,d,i,a)=> d.value < a[m].value ? i : m, 0);
+    const kept = dice.filter((_,i)=> i!==minIdx);
+    const total = kept.reduce((s,d)=> s+d.value, 0);
+    return {dice, droppedIdx:minIdx, total};
+  }
+
+  function modifier(score){
+    const m = Math.floor((score-10)/2);
+    return (m>=0?'+':'') + m;
+  }
+
+  function rollAll(){
+    const container = document.getElementById('scores');
+    container.innerHTML = '';
+    const totals = [];
+
+    for(let s=0;s<6;s++){
+      const r = rollScore();
+      totals.push(r.total);
+
+      const diceHtml = r.dice.map((d,i)=>{
+        const cls = [];
+        if(i===r.droppedIdx) cls.push('drop');
+        if(d.rerolled) cls.push('one');
+        return `<span class="${cls.join(' ')}">${d.value}</span>`;
+      }).join(' ');
+
+      const card = document.createElement('div');
+      card.className = 'score-card show';
+      card.style.animationDelay = (s*0.08)+'s';
+      card.innerHTML = `
+        <div class="total">${r.total}</div>
+        <div class="rolls">${diceHtml}</div>
+        <div class="modifier">mod <b>${modifier(r.total)}</b></div>`;
+      container.appendChild(card);
+    }
+
+    const sum = totals.reduce((a,b)=>a+b,0);
+    document.getElementById('summary').innerHTML =
+      `Total: <b>${sum}</b> &nbsp;·&nbsp; Average: <b>${(sum/6).toFixed(1)}</b>`;
+  }
+
+  function clearScores(){
+    document.getElementById('scores').innerHTML = '';
+    document.getElementById('summary').innerHTML = '';
+  }
+</script>
+</body>
+</html>
