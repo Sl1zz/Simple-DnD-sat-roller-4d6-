@@ -2,7 +2,7 @@
 A Simple DnD sat roller 4d6 reroll 1s and drop the lowest
 
 ## Hosted on 
-### http://sd6-1diceroller.infinityfree.io
+### http://d6-1diceroller.infinityfree.io
 
 
 
